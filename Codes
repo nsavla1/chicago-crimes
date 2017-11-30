@@ -1,0 +1,116 @@
+Bash$ hdfs dfs  -mkdir /tmp/chicagocrimes/
+Bash$ hdfs dfs -put Crimes.csv /tmp/chicagocrimes/
+Bash$ hive
+Hive> CREATE EXTERNAL TABLE `crimes_staging` (
+`id` int,
+`case_number` string,
+`crime_date` string,
+`block` string,
+`iucr` string,
+`primary_type` string,
+`description` string,
+`location_description` string,
+`arrest` boolean,
+`domestic` boolean,
+`beat` int,
+`district` int,
+`ward` int,
+`community_area` int,
+`fbi_code` string,
+`x_coordinate` int,
+`y_coordinate` int,
+`year` int,
+`updated_on` string,
+`latitude` double,
+`longitude` double,
+`location` string)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ","
+LOCATION "/tmp/chicagocrime"
+TBLPROPERTIES (
+ 'skip.header.line.count' = '1');
+
+
+1.For Maps :
+Finding the highest crime type in Chicago from 2001 – present date :
+drop table if exists crime_location;
+CREATE TABLE IF NOT EXISTS crime_location
+AS SELECT
+id ,case_number ,crime_date ,primary_type ,description ,location_description ,arrest ,latitude ,longitude
+from crimes_staging;
+1.1For Making 00000-00 file ,for tablue :
+INSERT OVERWRITE DIRECTORY '/tmp/'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT * FROM crime_location
+WHERE latitude is NOT NULL and longitude is NOT NULL and primary_type is NOT NULL;
+
+2.Finding the safest places in Chicago which have the least crimes from year 2001 till present days.
+drop table if exists crime_location_community_area;
+CREATE TABLE IF NOT EXISTS crime_location_community_area
+AS SELECT
+community_area,latitude ,longitude, primary_type, count(community_area) AS cnt
+from crimes_staging
+group by primary_type,community_area, latitude, longitude
+order by cnt DESC;
+2.1For Making 00000-00 file ,for tablue 
+INSERT OVERWRITE DIRECTORY '/tmp/'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT * FROM crime_location_community_area
+WHERE latitude is NOT NULL and longitude is NOT NULL and community_area is NOT NULL;
+
+3.Finding The Location Where The Police Are Most Active In Chicago From 2001 Till Present Date.
+drop table if exists crime_arrest;
+CREATE TABLE IF NOT EXISTS crime_arrest
+AS SELECT
+primary_type ,arrest ,beat,latitude, longitude
+from crimes_staging
+group by primary_type,arrest ,beat,latitude, longitude;
+3.1For Making 00000-00 file ,for tablue 
+INSERT OVERWRITE DIRECTORY '/tmp/'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT * FROM crime_arrest
+WHERE latitude is NOT NULL and longitude is NOT NULL and arrest is NOT NULL;
+
+
+
+For Graphs :
+Number of different crime committed per year in Chicago from 2001 to 2017:
+drop table if exists crime;
+CREATE TABLE IF NOT EXISTS crime
+AS SELECT
+id ,case_number ,crime_date ,primary_type ,description  ,arrest 
+from crimes_staging;
+For Making 00000-00 file ,for tablue
+INSERT OVERWRITE DIRECTORY '/tmp/'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT * FROM crime
+WHERE primary_type is NOT NULL and year is NOT NULL;
+
+The pie chart Illustrate percentage of crime committed from 2001 to 2017 in Chicago :
+drop table if exists crime_perc;
+CREATE TABLE IF NOT EXISTS crime_ perc
+AS SELECT
+primary_type,year, count(arrest) AS cnt
+from crimes_staging
+group by primary_type,year
+order by cnt DESC;
+For Making 00000-00 file ,for tablue
+INSERT OVERWRITE DIRECTORY '/tmp/'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT * FROM crime_perc
+WHERE primary_type is NOT NULL;
+
+Different crimes committed in chicago with respect to years from 2001 to present.
+drop table if exists crime_type_year;
+CREATE TABLE IF NOT EXISTS crime_type_year 
+AS SELECT
+primary_type,year, count(arrest) AS cnt
+from crimes_staging
+group by primary_type,year
+order by cnt DESC;
+For Making 00000-00 file ,for tablue
+INSERT OVERWRITE DIRECTORY '/tmp/'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT * FROM crime_type_year
+WHERE primary_type is NOT NULL and year is NOT NULL;
+ 
